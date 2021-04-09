@@ -19,9 +19,9 @@ module.exports = {
         pic: joi.string().required(),
         spv: joi.string().required(),
         divisi: joi.string().required(),
-        kode_depo: joi.number().required(),
+        kode_depo: joi.number().required().valid(),
         nama_depo: joi.string().required(),
-        status: joi.string().required()
+        status: joi.string().required().valid('active', 'inactive')
       })
       const { value: results, error } = schema.validate(req.body)
       if (error) {
@@ -30,7 +30,7 @@ module.exports = {
         if (level === 1) {
           const result = await pic.findAll({ where: { kode_depo: results.kode_depo } })
           if (result.length > 0) {
-            return response(res, 'kode depo already exist', {}, 404, false)
+            return response(res, 'kode depo already use', {}, 404, false)
           } else {
             const result = await pic.create(results)
             if (result) {
@@ -115,7 +115,7 @@ module.exports = {
         sortValue = sort || 'createdAt'
       }
       if (!limit) {
-        limit = 5
+        limit = 10
       } else {
         limit = parseInt(limit)
       }
@@ -215,34 +215,93 @@ module.exports = {
           const dokumen = `assets/masters/${req.files[0].filename}`
           const rows = await readXlsxFile(dokumen)
           const count = []
-          const cek = ['Nama PIC', 'Nama SPV', 'Divisi', 'Kode Depo']
+          const cek = ['Nama PIC', 'Nama SPV', 'Divisi', 'Kode Depo', 'Nama Depo']
           const valid = rows[0]
           for (let i = 0; i < cek.length; i++) {
-            console.log(`${valid[i]} === ${cek[i]}`)
             if (valid[i] === cek[i]) {
-              console.log(`${valid[i]} === ${cek[i]}`)
               count.push(1)
             }
           }
-          if (count.length === 4) {
-            rows.shift()
-            const result = await sequelize.query(`INSERT INTO pics (pic, spv, divisi, kode_depo) VALUES ${rows.map(a => '(?)').join(',')}`,
-              {
-                replacements: rows,
-                type: QueryTypes.INSERT
-              })
-            if (result) {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'successfully upload file master')
+          if (count.length === cek.length) {
+            const plant = []
+            const pic = []
+            const kode = []
+            for (let i = 1; i < rows.length; i++) {
+              const a = rows[i]
+              plant.push(`Nama PIC ${a[0]} dan Kode Depo ${a[3]}`)
+              pic.push(`${a[0]}`)
+              kode.push(`${a[3]}`)
+            }
+            const object = {}
+            const result = []
+
+            plant.forEach(item => {
+              if (!object[item]) { object[item] = 0 }
+              object[item] += 1
+            })
+
+            for (const prop in object) {
+              if (object[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+
+            if (result.length > 0) {
+              return response(res, 'there is duplication in your file master', { result }, 404, false)
             } else {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'failed to upload file', {}, 404, false)
+              const arr = []
+              for (let i = 0; i < rows.length - 1; i++) {
+                const select = await sequelize.query(`SELECT pic, kode_depo from pics WHERE pic='${pic[i]}' AND kode_depo='${kode[i]}'`, {
+                  type: QueryTypes.SELECT
+                })
+                await sequelize.query(`DELETE from pics WHERE pic='${pic[i]}' AND kode_depo='${kode[i]}'`, {
+                  type: QueryTypes.DELETE
+                })
+                if (select.length > 0) {
+                  arr.push(select[0])
+                }
+              }
+              if (arr.length > 0) {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO pics (pic, spv, divisi, kode_depo, nama_depo) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              } else {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO pics (pic, spv, divisi, kode_depo, nama_depo) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              }
             }
           } else {
             fs.unlink(dokumen, function (err) {

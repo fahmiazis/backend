@@ -22,16 +22,17 @@ module.exports = {
         channel: joi.string().required(),
         distribution: joi.string().required(),
         status_depo: joi.string().required(),
+        profit_center: joi.string().required(),
         kode_sap_1: joi.string().required(),
         kode_sap_2: joi.string().required(),
         kode_plant: joi.string().required(),
-        nama_grom: joi.string(),
-        nama_bm: joi.string(),
-        nama_ass: joi.string(),
-        nama_pic_1: joi.string(),
-        nama_pic_2: joi.string(),
-        nama_pic_3: joi.string(),
-        nama_pic_4: joi.string()
+        nama_grom: joi.string().required(),
+        nama_bm: joi.string().required(),
+        nama_ass: joi.string().allow(''),
+        nama_pic_1: joi.string().allow(''),
+        nama_pic_2: joi.string().allow(''),
+        nama_pic_3: joi.string().allow(''),
+        nama_pic_4: joi.string().allow('')
       })
       const { value: results, error } = schema.validate(req.body)
       if (error) {
@@ -54,11 +55,16 @@ module.exports = {
                 if (result.length > 0) {
                   return response(res, 'kode plant already use', {}, 404, false)
                 } else {
-                  const result = await depo.create(results)
-                  if (result) {
-                    return response(res, 'succesfully add depo', { result })
+                  const result = await depo.findAll({ where: { profit_center: results.profit_center } })
+                  if (result.length > 0) {
+                    return response(res, 'profit center already use', {}, 404, false)
                   } else {
-                    return response(res, 'failed to add depo', {}, 404, false)
+                    const result = await depo.create(results)
+                    if (result) {
+                      return response(res, 'succesfully add depo', { result })
+                    } else {
+                      return response(res, 'failed to add depo', {}, 404, false)
+                    }
                   }
                 }
               }
@@ -85,14 +91,15 @@ module.exports = {
         status_depo: joi.string(),
         kode_sap_1: joi.string().required(),
         kode_sap_2: joi.string().required(),
+        profit_center: joi.string().required(),
         kode_plant: joi.string().required(),
-        nama_grom: joi.string(),
-        nama_bm: joi.string(),
-        nama_ass: joi.string(),
-        nama_pic_1: joi.string(),
-        nama_pic_2: joi.string(),
-        nama_pic_3: joi.string(),
-        nama_pic_4: joi.string()
+        nama_grom: joi.string().required(),
+        nama_bm: joi.string().required(),
+        nama_ass: joi.string().allow(''),
+        nama_pic_1: joi.string().allow(''),
+        nama_pic_2: joi.string().allow(''),
+        nama_pic_3: joi.string().allow(''),
+        nama_pic_4: joi.string().allow('')
       })
       const { value: results, error } = schema.validate(req.body)
       if (error) {
@@ -115,12 +122,17 @@ module.exports = {
                 if (result.length > 0) {
                   return response(res, 'kode plant already use', {}, 404, false)
                 } else {
-                  const result = await depo.findByPk(id)
-                  if (result) {
-                    await result.update(results)
-                    return response(res, 'succesfully update depo', { result })
+                  const result = await depo.findAll({ where: { profit_center: results.profit_center, [Op.not]: { id: id } } })
+                  if (result.length > 0) {
+                    return response(res, 'profit center already use', {}, 404, false)
                   } else {
-                    return response(res, 'failed to update depo', {}, 404, false)
+                    const result = await depo.findByPk(id)
+                    if (result) {
+                      await result.update(results)
+                      return response(res, 'succesfully update depo', { result })
+                    } else {
+                      return response(res, 'failed to update depo', {}, 404, false)
+                    }
                   }
                 }
               }
@@ -169,7 +181,7 @@ module.exports = {
         sortValue = sort || 'createdAt'
       }
       if (!limit) {
-        limit = 5
+        limit = 10
       } else {
         limit = parseInt(limit)
       }
@@ -187,6 +199,7 @@ module.exports = {
             { channel: { [Op.like]: `%${searchValue}%` } },
             { distribution: { [Op.like]: `%${searchValue}%` } },
             { status_depo: { [Op.like]: `%${searchValue}%` } },
+            { profit_center: { [Op.like]: `%${searchValue}%` } },
             { kode_sap_1: { [Op.like]: `%${searchValue}%` } },
             { kode_sap_2: { [Op.like]: `%${searchValue}%` } },
             { kode_plant: { [Op.like]: `%${searchValue}%` } },
@@ -260,33 +273,146 @@ module.exports = {
           const dokumen = `assets/masters/${req.files[0].filename}`
           const rows = await readXlsxFile(dokumen)
           const count = []
-          const cek = ['Kode Depo', 'Nama Depo', 'Home Town', 'Channel', 'Distribution', 'Status Depo', 'Kode SAP 1', 'Kode SAP 2', 'Kode Plant', 'Nama GROM', 'Nama BM', 'Nama ASS', 'Nama PIC 1', 'Nama PIC 2', 'Nama PIC 3', 'Nama PIC 4']
+          const cek = ['Kode Depo', 'Nama Depo', 'Home Town', 'Channel', 'Distribution', 'Status Depo', 'Profit Center', 'Kode SAP 1', 'Kode SAP 2', 'Kode Plant', 'Nama GROM', 'Nama BM', 'Nama ASS', 'Nama PIC 1', 'Nama PIC 2', 'Nama PIC 3', 'Nama PIC 4']
           const valid = rows[0]
           for (let i = 0; i < cek.length; i++) {
             if (valid[i] === cek[i]) {
-              console.log(`${valid[i]} === ${cek[i]}`)
               count.push(1)
             }
           }
           if (count.length === cek.length) {
-            rows.shift()
-            const result = await sequelize.query(`INSERT INTO depos (kode_depo, nama_depo, home_town, channel, distribution, status_depo, kode_sap_1, kode_sap_2, kode_plant, nama_grom, nama_bm, nama_ass, nama_pic_1, nama_pic_2, nama_pic_3, nama_pic_4) VALUES ${rows.map(a => '(?)').join(',')}`,
-              {
-                replacements: rows,
-                type: QueryTypes.INSERT
-              })
-            if (result) {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'successfully upload file master')
+            const plant = []
+            const profit = []
+            const sap1 = []
+            const sap2 = []
+            const depo = []
+            const kode = []
+            for (let i = 1; i < rows.length; i++) {
+              const a = rows[i]
+              plant.push(`Kode Plant ${a[9]}`)
+              kode.push(`${a[9]}`)
+              depo.push(`Kode Depo ${a[0]}`)
+              profit.push(`Profit Center ${a[6]}`)
+              sap1.push(`Kode SAP 1 ${a[7]}`)
+              sap2.push(`Kode SAP 2 ${a[8]}`)
+            }
+            const object = {}
+            const result = []
+            const dupProfit = {}
+            const dupSap1 = {}
+            const dupSap2 = {}
+            const dupDepo = {}
+
+            depo.forEach(item => {
+              if (!dupDepo[item]) { dupDepo[item] = 0 }
+              dupDepo[item] += 1
+            })
+
+            for (const prop in dupDepo) {
+              if (dupDepo[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+
+            profit.forEach(item => {
+              if (!dupProfit[item]) { dupProfit[item] = 0 }
+              dupProfit[item] += 1
+            })
+
+            for (const prop in dupProfit) {
+              if (dupProfit[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+
+            sap1.forEach(item => {
+              if (!dupSap1[item]) { dupSap1[item] = 0 }
+              dupSap1[item] += 1
+            })
+
+            for (const prop in dupSap1) {
+              if (dupSap1[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+
+            sap2.forEach(item => {
+              if (!dupSap2[item]) { dupSap2[item] = 0 }
+              dupSap2[item] += 1
+            })
+
+            for (const prop in dupSap2) {
+              if (dupSap2[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+
+            plant.forEach(item => {
+              if (!object[item]) { object[item] = 0 }
+              object[item] += 1
+            })
+
+            for (const prop in object) {
+              if (object[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+            if (result.length > 0) {
+              return response(res, 'there is duplication in your file master', { result }, 404, false)
             } else {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'failed to upload file', {}, 404, false)
+              const arr = []
+              for (let i = 0; i < rows.length - 1; i++) {
+                const select = await sequelize.query(`SELECT kode_plant, nama_depo from depos WHERE kode_plant='${kode[i]}'`, {
+                  type: QueryTypes.SELECT
+                })
+                await sequelize.query(`DELETE from depos WHERE kode_plant='${kode[i]}'`, {
+                  type: QueryTypes.DELETE
+                })
+                if (select.length > 0) {
+                  arr.push(select[0])
+                }
+              }
+              if (arr.length > 0) {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO depos (kode_depo, nama_depo, home_town, channel, distribution, status_depo, profit_center, kode_sap_1, kode_sap_2, kode_plant, nama_grom, nama_bm, nama_ass, nama_pic_1, nama_pic_2, nama_pic_3, nama_pic_4) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              } else {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO depos (kode_depo, nama_depo, home_town, channel, distribution, status_depo, profit_center, kode_sap_1, kode_sap_2, kode_plant, nama_grom, nama_bm, nama_ass, nama_pic_1, nama_pic_2, nama_pic_3, nama_pic_4) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              }
             }
           } else {
             fs.unlink(dokumen, function (err) {
@@ -310,8 +436,8 @@ module.exports = {
         const workbook = new excel.Workbook()
         const worksheet = workbook.addWorksheet()
         const arr = []
-        const header = ['Kode Depo', 'Nama Depo', 'Home Town', 'Channel', 'Distribution', 'Status Depo', 'Kode SAP 1', 'Kode SAP 2', 'Kode Plant', 'Nama GROM', 'Nama BM', 'Nama ASS', 'Nama PIC 1', 'Nama PIC 2', 'Nama PIC 3', 'Nama PIC 4']
-        const key = ['kode_depo', 'nama_depo', 'home_town', 'channel', 'distribution', 'status_depo', 'kode_sap_1', 'kode_sap_2', 'kode_plant', 'nama_grom', 'nama_bm', 'nama_ass', 'nama_pic_1', 'nama_pic_2', 'nama_pic_3', 'nama_pic_4']
+        const header = ['Kode Depo', 'Nama Depo', 'Home Town', 'Channel', 'Distribution', 'Status Depo', 'Profit Center', 'Kode SAP 1', 'Kode SAP 2', 'Kode Plant', 'Nama GROM', 'Nama BM', 'Nama ASS', 'Nama PIC 1', 'Nama PIC 2', 'Nama PIC 3', 'Nama PIC 4']
+        const key = ['kode_depo', 'nama_depo', 'home_town', 'channel', 'distribution', 'status_depo', 'profit_center', 'kode_sap_1', 'kode_sap_2', 'kode_plant', 'nama_grom', 'nama_bm', 'nama_ass', 'nama_pic_1', 'nama_pic_2', 'nama_pic_3', 'nama_pic_4']
         for (let i = 0; i < header.length; i++) {
           let temp = { header: header[i], key: key[i] }
           arr.push(temp)

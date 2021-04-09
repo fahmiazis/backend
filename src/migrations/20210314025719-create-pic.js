@@ -18,14 +18,14 @@ module.exports = {
         type: Sequelize.STRING
       },
       kode_depo: {
-        type: Sequelize.INTEGER,
-        unique: true
+        type: Sequelize.STRING
       },
       nama_depo: {
         type: Sequelize.STRING
       },
       status: {
-        type: Sequelize.ENUM('active', 'inactive')
+        type: Sequelize.ENUM('active', 'inactive'),
+        defaultValue: 'active'
       },
       createdAt: {
         allowNull: false,

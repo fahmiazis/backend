@@ -21,23 +21,32 @@ module.exports = {
         area: joi.string().required(),
         email_bm: joi.string().required().email(),
         email_aos: joi.string().required().email(),
-        email_sa: joi.string().email(),
+        email_sa_kasir: joi.string().email().required(),
         email_ho_pic: joi.string().email().required(),
         email_grom: joi.string().email().required(),
         email_rom: joi.string().email().required(),
-        email_ho_1: joi.string().email(),
-        email_ho_2: joi.string().email(),
-        email_ho_3: joi.string().email(),
-        email_ho_4: joi.string().email()
+        email_ho_1: joi.string().email().required(),
+        email_ho_2: joi.string().email().allow(''),
+        email_ho_3: joi.string().email().allow(''),
+        email_ho_4: joi.string().email().allow(''),
+        tipe: joi.string().valid('sa', 'kasir'),
+        status: joi.string().valid('active', 'inactive')
       })
       const { value: results, error } = schema.validate(req.body)
       if (error) {
         return response(res, 'Error', { error: error.message }, 401, false)
       } else {
         if (level === 1) {
-          const result = await email.findAll({ where: { kode_plant: results.kode_plant } })
+          const result = await email.findAll({
+            where: {
+              [Op.and]: [
+                { kode_plant: results.kode_plant },
+                { tipe: results.tipe }
+              ]
+            }
+          })
           if (result.length > 0) {
-            return response(res, 'kode plant already exist', {}, 400, false)
+            return response(res, 'kode plant and tipe already exist', {}, 400, false)
           } else {
             const result = await email.create(results)
             if (result) {
@@ -67,10 +76,10 @@ module.exports = {
       if (typeof sort === 'object') {
         sortValue = Object.values(sort)[0]
       } else {
-        sortValue = sort || 'createdAt'
+        sortValue = sort || 'id'
       }
       if (!limit) {
-        limit = 5
+        limit = 10
       } else {
         limit = parseInt(limit)
       }
@@ -87,7 +96,7 @@ module.exports = {
             { email_aos: { [Op.like]: `%${searchValue}%` } },
             { email_grom: { [Op.like]: `%${searchValue}%` } },
             { email_bm: { [Op.like]: `%${searchValue}%` } },
-            { email_sa: { [Op.like]: `%${searchValue}%` } },
+            { email_sa_kasir: { [Op.like]: `%${searchValue}%` } },
             { email_rom: { [Op.like]: `%${searchValue}%` } },
             { email_ho_pic: { [Op.like]: `%${searchValue}%` } },
             { email_ho_1: { [Op.like]: `%${searchValue}%` } },
@@ -146,17 +155,19 @@ module.exports = {
       const id = req.params.id
       const schema = joi.object({
         kode_plant: joi.string(),
-        area: joi.string().email(),
+        area: joi.string(),
+        email_sa_kasir: joi.string().email(),
         email_bm: joi.string().email(),
         email_aos: joi.string().email(),
-        email_sa: joi.string().email(),
         email_ho_pic: joi.string().email(),
         email_grom: joi.string().email(),
         email_rom: joi.string().email(),
         email_ho_1: joi.string().email(),
-        email_ho_2: joi.string().email(),
-        email_ho_3: joi.string().email(),
-        email_ho_4: joi.string().email()
+        email_ho_2: joi.string().email().allow(''),
+        email_ho_3: joi.string().email().allow(''),
+        email_ho_4: joi.string().email().allow(''),
+        tipe: joi.string().valid('sa', 'kasir'),
+        status: joi.string().valid('active', 'inactive')
       })
       const { value: results, error } = schema.validate(req.body)
       if (error) {
@@ -167,12 +178,15 @@ module.exports = {
             const result = await email.findAll({
               where:
               {
-                kode_plant: results.kode_plant,
+                [Op.and]: [
+                  { kode_plant: results.kode_plant },
+                  { tipe: results.tipe }
+                ],
                 [Op.not]: { id: id }
               }
             })
             if (result.length > 0) {
-              return response(res, 'kode plant already use', {}, 400, false)
+              return response(res, 'kode plant and tipe already use', {}, 400, false)
             } else {
               const result = await email.findByPk(id)
               if (result) {
@@ -236,34 +250,92 @@ module.exports = {
           const dokumen = `assets/masters/${req.files[0].filename}`
           const rows = await readXlsxFile(dokumen)
           const count = []
-          const cek = ['Kode Plant', 'AREA', 'Email AOS', 'Email HO PIC', 'Email BM', 'Email Grom', 'Email ROM', 'Email HO 1', 'Email HO 2', 'Email HO 3']
+          const cek = ['Kode Plant', 'AREA', 'Email SA/KASIR', 'Email AOS', 'Email HO PIC', 'Email BM', 'Email Grom', 'Email ROM', 'Email HO 1', 'Email HO 2', 'Email HO 3', 'Email HO 4', 'Tipe']
           const valid = rows[0]
           for (let i = 0; i < cek.length; i++) {
-            console.log(`${valid[i]} === ${cek[i]}`)
             if (valid[i] === cek[i]) {
-              console.log(`${valid[i]} === ${cek[i]}`)
               count.push(1)
             }
           }
-          if (count.length === 10) {
-            rows.shift()
-            const result = await sequelize.query(`INSERT INTO emails (kode_plant, area, email_aos, email_ho_pic, email_bm, email_grom, email_rom, email_ho_1, email_ho_2, email_ho_3) VALUES ${rows.map(a => '(?)').join(',')}`,
-              {
-                replacements: rows,
-                type: QueryTypes.INSERT
-              })
-            if (result) {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'successfully upload file master')
+          if (count.length === cek.length) {
+            const plant = []
+            const kode = []
+            const tipe = []
+            for (let i = 1; i < rows.length; i++) {
+              const a = rows[i]
+              plant.push(`Kode Plant ${a[0]} Tipe ${a[12]}`)
+              kode.push(`${a[0]}`)
+              tipe.push(`${a[12]}`)
+            }
+            const object = {}
+            const result = []
+
+            plant.forEach(item => {
+              if (!object[item]) { object[item] = 0 }
+              object[item] += 1
+            })
+
+            for (const prop in object) {
+              if (object[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+            if (result.length > 0) {
+              return response(res, 'there is duplication in your file master', { result }, 404, false)
             } else {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'failed to upload file', {}, 404, false)
+              const arr = []
+              for (let i = 0; i < rows.length - 1; i++) {
+                const select = await sequelize.query(`SELECT kode_plant, tipe from emails WHERE kode_plant='${kode[i]}' AND tipe='${tipe[i]}'`, {
+                  type: QueryTypes.SELECT
+                })
+                await sequelize.query(`DELETE from emails WHERE kode_plant='${kode[i]}' AND tipe='${tipe[i]}'`, {
+                  type: QueryTypes.DELETE
+                })
+                if (select.length > 0) {
+                  arr.push(select[0])
+                }
+              }
+              if (arr.length > 0) {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO emails (kode_plant, area, email_sa_kasir, email_aos, email_ho_pic, email_bm, email_grom, email_rom, email_ho_1, email_ho_2, email_ho_3, email_ho_4, tipe) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              } else {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO emails (kode_plant, area, email_sa_kasir, email_aos, email_ho_pic, email_bm, email_grom, email_rom, email_ho_1, email_ho_2, email_ho_3, email_ho_4, tipe) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              }
             }
           } else {
             fs.unlink(dokumen, function (err) {
@@ -318,23 +390,40 @@ module.exports = {
   },
   sendMail: async (req, res) => {
     try {
-      const mailOptions = {
-        from: 'kewekkewek57@gmail.com',
-        replyTo: 'kewekkewek57@gmail.com',
-        cc: 'sapikewek@gmail.com',
-        to: 'fahmiazis797@gmail.com',
-        subject: 'coba lagi bre',
-        html: 'klik link dibawah untuk reset/ganti password anda \n https://google.com'
-      }
-      mailer.sendMail(mailOptions, (error, result) => {
-        console.log(error)
-        console.log(result)
-        if (error) {
-          return response(res, 'failed to send email', { error: error }, 401, false)
-        } else if (result) {
-          return response(res, 'success send email', { result: result })
-        }
+      const level = req.user.level
+      const schema = joi.object({
+        kode_plant: joi.string().required()
       })
+      const { value: results, error } = schema.validate(req.body)
+      if (error) {
+        return response(res, 'Error', { error: error }, 401, false)
+      } else {
+        if (level === 1) {
+          const result = await email.findAll({ where: { kode_plant: results.kode_plant } })
+          if (result) {
+            console.log(result[0].email_aos)
+            const mailOptions = {
+              from: `${result[0].email_aos}`,
+              replyTo: `${result[0].email_aos}`,
+              to: `${result[0].email_ho_pic}`,
+              cc: `${result[0].email_bm}, ${result[0].email_grom}, ${result[0].email_ho_1 === null ? '' : result[0].email_ho_1}, ${result[0].email_ho_2 === null ? '' : result[0].email_ho_2}, ${result[0].email_ho_3 === null ? '' : result[0].email_ho_3}, ${result[0].email_ho_4 === null ? '' : result[0].email_ho_4}`,
+              subject: 'coba lagi bre',
+              html: 'klik link dibawah untuk reset/ganti password anda \n https://google.com'
+            }
+            mailer.sendMail(mailOptions, (error, result) => {
+              if (error) {
+                return response(res, 'failed to send email', { error: error }, 401, false)
+              } else if (result) {
+                return response(res, 'success send email', { result: result })
+              }
+            })
+          } else {
+            return response(res, 'kode plant not found', {}, 401, false)
+          }
+        } else {
+          return response(res, "You're not super administrator", {}, 404, false)
+        }
+      }
     } catch (error) {
       return response(res, error.message, {}, 500, false)
     }

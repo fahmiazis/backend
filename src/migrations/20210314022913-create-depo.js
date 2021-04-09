@@ -25,7 +25,15 @@ module.exports = {
         type: Sequelize.STRING
       },
       status_depo: {
-        type: Sequelize.STRING
+        type: Sequelize.ENUM('Cabang SAP', 'Cabang Scylla', 'Depo SAP', 'Depo Scylla')
+      },
+      profit_center: {
+        type: Sequelize.STRING,
+        unique: true
+      },
+      kode_plant: {
+        type: Sequelize.STRING,
+        unique: true
       },
       kode_sap_1: {
         type: Sequelize.INTEGER,
@@ -33,10 +41,6 @@ module.exports = {
       },
       kode_sap_2: {
         type: Sequelize.INTEGER,
-        unique: true
-      },
-      kode_plant: {
-        type: Sequelize.STRING,
         unique: true
       },
       nama_grom: {

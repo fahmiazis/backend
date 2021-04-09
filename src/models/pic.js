@@ -1,7 +1,7 @@
-'use strict';
+'use strict'
 const {
   Model
-} = require('sequelize');
+} = require('sequelize')
 module.exports = (sequelize, DataTypes) => {
   class pic extends Model {
     /**
@@ -9,8 +9,12 @@ module.exports = (sequelize, DataTypes) => {
      * This method is not a part of Sequelize lifecycle.
      * The `models/index` file will call this method automatically.
      */
-    static associate(models) {
+    static associate (models) {
       // define association here
+      pic.hasMany(models.depo, {
+        foreignKey: 'kode_depo',
+        as: 'depo'
+      })
     }
   };
   pic.init({
@@ -22,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
     status: DataTypes.ENUM('active', 'inactive')
   }, {
     sequelize,
-    modelName: 'pic',
-  });
-  return pic;
-};
+    modelName: 'pic'
+  })
+  return pic
+}

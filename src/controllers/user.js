@@ -19,8 +19,8 @@ module.exports = {
       const schema = joi.object({
         username: joi.string().required(),
         password: joi.string().required(),
-        kode_depo: joi.number(),
-        nama_depo: joi.string(),
+        kode_depo: joi.number().allow(''),
+        nama_depo: joi.string().allow(''),
         user_level: joi.number().required(),
         status: joi.string().required()
       })
@@ -33,9 +33,16 @@ module.exports = {
           if (result.length > 0) {
             return response(res, 'username already use', {}, 404, false)
           } else {
-            const result = await users.findAll({ where: { kode_depo: results.kode_depo } })
+            const result = await users.findAll({
+              where: {
+                [Op.and]: [
+                  { kode_depo: results.kode_depo },
+                  { user_level: results.user_level }
+                ]
+              }
+            })
             if (result.length > 0) {
-              return response(res, 'kode depo already use', {}, 404, false)
+              return response(res, 'kode depo and user level already use', {}, 404, false)
             } else {
               results.password = await bcrypt.hash(results.password, await bcrypt.genSalt())
               const result = await users.create(results)
@@ -60,9 +67,9 @@ module.exports = {
       const id = req.params.id
       const schema = joi.object({
         username: joi.string(),
-        password: joi.string(),
-        kode_depo: joi.number(),
-        nama_depo: joi.string(),
+        password: joi.string().allow(''),
+        kode_depo: joi.number().allow(''),
+        nama_depo: joi.string().allow(''),
         user_level: joi.number(),
         status: joi.string()
       })
@@ -71,56 +78,62 @@ module.exports = {
         return response(res, 'Error', { error: error.message }, 401, false)
       } else {
         if (level === 1) {
-          if (results.username) {
+          if (results.kode_depo) {
             const result = await users.findAll({
               where: {
-                username: results.username,
+                [Op.and]: [
+                  { kode_depo: results.kode_depo },
+                  { user_level: results.user_level }
+                ],
                 [Op.not]: { id: id }
               }
             })
             if (result.length > 0) {
-              return response(res, 'username already use', { result }, 404, false)
+              return response(res, 'kode depo and user level already use', {}, 404, false)
             } else {
-              if (results.password) {
-                results.password = await bcrypt.hash(results.password, await bcrypt.genSalt())
-                const result = await users.findByPk(id)
-                if (result) {
-                  await result.update(results)
-                  return response(res, 'update User succesfully', { result })
+              if (results.username) {
+                const result = await users.findAll({
+                  where: {
+                    username: results.username,
+                    [Op.not]: { id: id }
+                  }
+                })
+                if (result.length > 0) {
+                  return response(res, 'username already use', { result }, 404, false)
                 } else {
-                  return response(res, 'Fail to update user', {}, 400, false)
-                }
-              } else {
-                const result = await users.findByPk(id)
-                if (result) {
-                  await result.update(results)
-                  return response(res, 'update User succesfully', { result })
-                } else {
-                  return response(res, 'Fail to update user', {}, 400, false)
+                  if (results.password !== '') {
+                    results.password = await bcrypt.hash(results.password, await bcrypt.genSalt())
+                    const result = await users.findByPk(id)
+                    if (result) {
+                      await result.update(results)
+                      return response(res, 'update User succesfully', { result })
+                    } else {
+                      return response(res, 'Fail to update user', {}, 400, false)
+                    }
+                  } else {
+                    const result = await users.findByPk(id)
+                    if (result) {
+                      await result.update(results)
+                      return response(res, 'update User succesfully', { result })
+                    } else {
+                      return response(res, 'Fail to update user', {}, 400, false)
+                    }
+                  }
                 }
               }
             }
           } else {
-            if (results.password) {
-              results.password = await bcrypt.hash(results.password, await bcrypt.genSalt())
-              const result = await users.findByPk(id)
-              if (result) {
-                await result.update(results)
-                return response(res, 'update User succesfully', { result })
-              } else {
-                return response(res, 'Fail to update user', {}, 400, false)
-              }
-            } else if (results.kode_depo) {
+            if (results.username) {
               const result = await users.findAll({
                 where: {
-                  kode_depo: results.kode_depo,
+                  username: results.username,
                   [Op.not]: { id: id }
                 }
               })
               if (result.length > 0) {
-                return response(res, 'depo code already use', {}, 404, false)
+                return response(res, 'username already exist', { result }, 404, false)
               } else {
-                if (results.password) {
+                if (results.password !== '') {
                   results.password = await bcrypt.hash(results.password, await bcrypt.genSalt())
                   const result = await users.findByPk(id)
                   if (result) {
@@ -133,19 +146,11 @@ module.exports = {
                   const result = await users.findByPk(id)
                   if (result) {
                     await result.update(results)
-                    return response(res, 'update user succesfully', { result })
+                    return response(res, 'update User succesfully', { result })
                   } else {
-                    return response(res, 'failed to update user', {}, 400, false)
+                    return response(res, 'Fail to update user', {}, 400, false)
                   }
                 }
-              }
-            } else {
-              const result = await users.findByPk(id)
-              if (result) {
-                await result.update(results)
-                return response(res, 'update User succesfully', { result })
-              } else {
-                return response(res, 'Fail to update user', {}, 400, false)
               }
             }
           }
@@ -178,7 +183,6 @@ module.exports = {
   },
   getUsers: async (req, res) => {
     try {
-      const idUser = req.user.id ? req.user.id : 0
       let { limit, page, search, sort } = req.query
       let searchValue = ''
       let sortValue = ''
@@ -190,10 +194,10 @@ module.exports = {
       if (typeof sort === 'object') {
         sortValue = Object.values(sort)[0]
       } else {
-        sortValue = sort || 'createdAt'
+        sortValue = sort || 'id'
       }
       if (!limit) {
-        limit = 5
+        limit = 10
       } else {
         limit = parseInt(limit)
       }
@@ -207,10 +211,9 @@ module.exports = {
           [Op.or]: [
             { username: { [Op.like]: `%${searchValue}%` } },
             { kode_depo: { [Op.like]: `%${searchValue}%` } },
-            { nama_depo: { [Op.like]: `%${searchValue}%` } },
-            { phone: { [Op.like]: `%${searchValue}%` } }
+            { nama_depo: { [Op.like]: `%${searchValue}%` } }
           ],
-          [Op.not]: { id: idUser }
+          [Op.not]: { user_level: 1 }
         },
         order: [[sortValue, 'ASC']],
         limit: limit,
@@ -256,47 +259,136 @@ module.exports = {
           const dokumen = `assets/masters/${req.files[0].filename}`
           const rows = await readXlsxFile(dokumen)
           const count = []
-          const cek = ['User Name', 'Password', 'Kode Depo', 'User Level']
+          const cek = ['User Name', 'Password', 'Kode Depo', 'Nama Depo', 'User Level']
           const valid = rows[0]
           for (let i = 0; i < cek.length; i++) {
             if (valid[i] === cek[i]) {
               count.push(1)
             }
           }
-          if (count.length === 4) {
-            rows.shift()
-            const create = []
-            for (let i = 0; i < rows.length; i++) {
-              const noun = []
-              const process = rows[i]
-              for (let j = 0; j < process.length; j++) {
-                if (j === 1) {
-                  let str = process[j]
-                  str = await bcrypt.hash(str, await bcrypt.genSalt())
-                  noun.push(str)
-                } else {
-                  noun.push(process[j])
+          if (count.length === cek.length) {
+            const plant = []
+            const user = []
+            const cek = []
+            for (let i = 1; i < rows.length; i++) {
+              const a = rows[i]
+              if (a[2] !== '') {
+                plant.push(`Kode depo ${a[2]} dan  User level ${a[4]}`)
+              }
+              user.push(`User Name ${a[0]}`)
+              cek.push(`${a[0]}`)
+            }
+            const object = {}
+            const result = []
+            const obj = {}
+
+            user.forEach(item => {
+              if (!obj[item]) { obj[item] = 0 }
+              obj[item] += 1
+            })
+
+            for (const prop in obj) {
+              if (obj[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+
+            plant.forEach(item => {
+              if (!object[item]) { object[item] = 0 }
+              object[item] += 1
+            })
+
+            for (const prop in object) {
+              if (object[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+            if (result.length > 0) {
+              return response(res, 'there is duplication in your file master', { result }, 404, false)
+            } else {
+              const arr = []
+              for (let i = 0; i < rows.length - 1; i++) {
+                const select = await sequelize.query(`SELECT username from users WHERE username='${cek[i]}'`, {
+                  type: QueryTypes.SELECT
+                })
+                await sequelize.query(`DELETE from users WHERE username='${cek[i]}'`, {
+                  type: QueryTypes.DELETE
+                })
+                if (select.length > 0) {
+                  arr.push(select[0])
                 }
               }
-              create.push(noun)
-            }
-            const result = await sequelize.query(`INSERT INTO users (username, password, kode_depo, user_level) VALUES ${create.map(a => '(?)').join(',')}`,
-              {
-                replacements: create,
-                type: QueryTypes.INSERT
-              })
-            if (result) {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'successfully upload file master')
-            } else {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'failed to upload file', {}, 404, false)
+              if (arr.length > 0) {
+                rows.shift()
+                const create = []
+                for (let i = 0; i < rows.length; i++) {
+                  const noun = []
+                  const process = rows[i]
+                  for (let j = 0; j < process.length; j++) {
+                    if (j === 1) {
+                      let str = process[j]
+                      str = await bcrypt.hash(str, await bcrypt.genSalt())
+                      noun.push(str)
+                    } else {
+                      noun.push(process[j])
+                    }
+                  }
+                  create.push(noun)
+                }
+                const result = await sequelize.query(`INSERT INTO users (username, password, kode_depo, nama_depo, user_level) VALUES ${create.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: create,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              } else {
+                rows.shift()
+                const create = []
+                for (let i = 0; i < rows.length; i++) {
+                  const noun = []
+                  const process = rows[i]
+                  for (let j = 0; j < process.length; j++) {
+                    if (j === 1) {
+                      let str = process[j]
+                      str = await bcrypt.hash(str, await bcrypt.genSalt())
+                      noun.push(str)
+                    } else {
+                      noun.push(process[j])
+                    }
+                  }
+                  create.push(noun)
+                }
+                const result = await sequelize.query(`INSERT INTO users (username, password, kode_depo, nama_depo, user_level) VALUES ${create.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: create,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              }
             }
           } else {
             fs.unlink(dokumen, function (err) {

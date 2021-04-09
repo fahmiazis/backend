@@ -1,12 +1,13 @@
 const nodemailer = require('nodemailer')
+const { HOST, PORT, USER, PASS } = process.env
 
 const transporter = nodemailer.createTransport({
-  host: 'mail.pinusmerahabadi.co.id',
+  host: `${HOST}`,
   secure: false,
-  port: 587,
+  port: `${PORT}`,
   auth: {
-    user: 'sys_adm@pinusmerahabadi.co.id',
-    pass: 'sys0911'
+    user: `${USER}`,
+    pass: `${PASS}`
   },
   tls: {
     rejectUnauthorized: false

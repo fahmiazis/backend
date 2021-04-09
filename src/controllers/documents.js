@@ -1,5 +1,5 @@
 const { pagination } = require('../helpers/pagination')
-const { documents, sequelize } = require('../models')
+const { documents, sequelize, Path, depo } = require('../models')
 const { Op, QueryTypes } = require('sequelize')
 const response = require('../helpers/response')
 const joi = require('joi')
@@ -17,11 +17,11 @@ module.exports = {
     try {
       const level = req.user.level
       const schema = joi.object({
-        kode_dokumen: joi.string().required(),
         nama_dokumen: joi.string().required(),
         jenis_dokumen: joi.string().required(),
         divisi: joi.string().required(),
         status_depo: joi.string().required(),
+        uploadedBy: joi.string().valid('sa', 'kasir').required(),
         status: joi.string().required(),
         kode_depo: joi.number(),
         lock_dokumen: joi.number(),
@@ -29,14 +29,20 @@ module.exports = {
         status_dokumen: joi.number()
       })
       const { value: results, error } = schema.validate(req.body)
-      console.log(results.kode_dokumen)
       if (error) {
         return response(res, 'Error', { error: error.message }, 401, false)
       } else {
         if (level === 1) {
-          const result = await documents.findAll({ where: { kode_dokumen: results.kode_dokumen } })
+          const result = await documents.findAll({
+            where: {
+              [Op.and]: [
+                { nama_dokumen: results.nama_dokumen },
+                { status_depo: results.status_depo }
+              ]
+            }
+          })
           if (result.length > 0) {
-            return response(res, 'kode dokumen already use', {}, 404, false)
+            return response(res, 'dokumen already use', {}, 404, false)
           } else {
             const result = await documents.create(results)
             if (result) {
@@ -58,12 +64,13 @@ module.exports = {
       const level = req.user.level
       const id = req.params.id
       const schema = joi.object({
-        kode_dokumen: joi.string(),
         nama_dokumen: joi.string(),
-        jenis_dokumen: joi.string(),
-        divisi: joi.string(),
-        status_depo: joi.string(),
-        status: joi.string(),
+        jenis_dokumen: joi.string().required().valid('monthly', 'daily'),
+        uploadedBy: joi.string().valid('sa', 'kasir').required(),
+        divisi: joi.string().disallow('-Pilih Divisi-'),
+        createdAt: joi.string(),
+        status_depo: joi.string().valid('Cabang SAP', 'Cabang Scylla', 'Depo SAP', 'Depo Scylla'),
+        status: joi.string().valid('active', 'inactive'),
         kode_depo: joi.number(),
         lock_dokumen: joi.number(),
         alasan: joi.string(),
@@ -74,10 +81,19 @@ module.exports = {
         return response(res, 'Error', { error: error.message }, 401, false)
       } else {
         if (level === 1) {
-          if (results.kode_dokumen) {
-            const result = await documents.findAll({ where: { kode_dokumen: results.kode_dokumen, [Op.not]: { id: id } } })
+          if (results.nama_dokumen) {
+            const result = await documents.findAll({
+              where:
+              {
+                [Op.and]: [
+                  { nama_dokumen: results.nama_dokumen },
+                  { status_depo: results.status_depo }
+                ],
+                [Op.not]: { id: id }
+              }
+            })
             if (result.length > 0) {
-              return response(res, 'kode dokumen already use', {}, 404, false)
+              return response(res, 'dokumen and status depo already use', {}, 404, false)
             } else {
               const result = await documents.findByPk(id)
               if (result) {
@@ -123,11 +139,12 @@ module.exports = {
       return response(res, error.message, {}, 500, false)
     }
   },
-  getDocuments: async (req, res) => {
+  getDocumentsArea: async (req, res) => {
     try {
-      let { limit, page, search, sort } = req.query
+      let { limit, page, search, sort, typeSort } = req.query
       let searchValue = ''
       let sortValue = ''
+      let typeSortValue = ''
       if (typeof search === 'object') {
         searchValue = Object.values(search)[0]
       } else {
@@ -137,6 +154,11 @@ module.exports = {
         sortValue = Object.values(sort)[0]
       } else {
         sortValue = sort || 'createdAt'
+      }
+      if (typeof typeSort === 'object') {
+        typeSortValue = Object.values(typeSort)[0]
+      } else {
+        typeSortValue = typeSort || 'ASC'
       }
       if (!limit) {
         limit = 5
@@ -148,25 +170,111 @@ module.exports = {
       } else {
         page = parseInt(page)
       }
+      const { level, kode } = req.user
+      const schema = joi.object({
+        fromDate: joi.date(),
+        toDate: joi.date(),
+        jenis: joi.string()
+      })
+      const { value: results, error } = schema.validate(req.body)
+      if (results.pic === undefined) {
+        results.pic = ''
+      }
+      if (results.fromDate === undefined) {
+        results.fromDate = '23/03/2021'
+      }
+      if (results.toDate === undefined) {
+        results.toDate = '23/03/2021'
+      }
+      if (error) {
+        return response(res, 'Error', { error: error.message }, 401, false)
+      } else {
+        const result = await depo.findAndCountAll({
+          where: {
+            kode_depo: kode
+          },
+          include: [{
+            model: documents,
+            as: 'dokumen',
+            where: {
+              [Op.and]: [
+                { uploadedBy: level === 4 ? 'sa' : 'kasir' },
+                {
+                  [Op.or]: [
+                    { kode_dokumen: { [Op.like]: `%${searchValue}%` } },
+                    { nama_dokumen: { [Op.like]: `%${searchValue}%` } },
+                    { jenis_dokumen: { [Op.like]: `%${searchValue}%` } },
+                    { divisi: { [Op.like]: `%${searchValue}%` } },
+                    { status_depo: { [Op.like]: `%${searchValue}%` } },
+                    { status: { [Op.like]: `%${searchValue}%` } }
+                  ]
+                }
+              ]
+            }
+          }],
+          order: [[sortValue, typeSortValue]],
+          limit: limit,
+          offset: (page - 1) * limit
+        })
+        const pageInfo = pagination('/dokumen/area/get', req.query, page, limit, result.count)
+        if (result) {
+          return response(res, 'list dokumen', { result, pageInfo })
+        } else {
+          return response(res, 'failed to get user', {}, 404, false)
+        }
+      }
+    } catch (error) {
+      return response(res, error.message, {}, 500, false)
+    }
+  },
+  getDocuments: async (req, res) => {
+    try {
+      let { limit, page, search, sort, typeSort } = req.query
+      let searchValue = ''
+      let sortValue = ''
+      let typeSortValue = ''
+      if (typeof search === 'object') {
+        searchValue = Object.values(search)[0]
+      } else {
+        searchValue = search || ''
+      }
+      if (typeof sort === 'object') {
+        sortValue = Object.values(sort)[0]
+      } else {
+        sortValue = sort || 'id'
+      }
+      if (typeof typeSort === 'object') {
+        typeSortValue = Object.values(typeSort)[0]
+      } else {
+        typeSortValue = typeSort || 'ASC'
+      }
+      if (!limit) {
+        limit = 10
+      } else {
+        limit = parseInt(limit)
+      }
+      if (!page) {
+        page = 1
+      } else {
+        page = parseInt(page)
+      }
       const result = await documents.findAndCountAll({
         where: {
           [Op.or]: [
-            { kode_dokumen: { [Op.like]: `%${searchValue}%` } },
             { nama_dokumen: { [Op.like]: `%${searchValue}%` } },
             { jenis_dokumen: { [Op.like]: `%${searchValue}%` } },
             { divisi: { [Op.like]: `%${searchValue}%` } },
             { status_depo: { [Op.like]: `%${searchValue}%` } },
-            { status: { [Op.like]: `%${searchValue}%` } },
-            { kode_depo: { [Op.like]: `%${searchValue}%` } }
+            { status: { [Op.like]: `%${searchValue}%` } }
           ]
         },
-        order: [[sortValue, 'ASC']],
+        order: [[sortValue, typeSortValue]],
         limit: limit,
         offset: (page - 1) * limit
       })
       const pageInfo = pagination('/dokumen/get', req.query, page, limit, result.count)
       if (result) {
-        return response(res, 'list users', { result, pageInfo })
+        return response(res, 'list dokumen', { result, pageInfo })
       } else {
         return response(res, 'failed to get user', {}, 404, false)
       }
@@ -204,7 +312,42 @@ module.exports = {
       return response(res, error.message, {}, 500, false)
     }
   },
-  uploadDocument: async (req, res) => {
+  // uploadDocument: async (req, res) => {
+  //   const id = req.params.id
+  //   uploadHelper(req, res, async function (err) {
+  //     try {
+  //       if (err instanceof multer.MulterError) {
+  //         if (err.code === 'LIMIT_UNEXPECTED_FILE' && req.files.length === 0) {
+  //           console.log(err.code === 'LIMIT_UNEXPECTED_FILE' && req.files.length > 0)
+  //           return response(res, 'fieldname doesnt match', {}, 500, false)
+  //         }
+  //         return response(res, err.message, {}, 500, false)
+  //       } else if (err) {
+  //         return response(res, err.message, {}, 401, false)
+  //       }
+  //       let dokumen = ''
+  //       for (let x = 0; x < req.files.length; x++) {
+  //         const path = `/uploads/${req.files[x].filename}`
+  //         dokumen += path + ', '
+  //         if (x === req.files.length - 1) {
+  //           dokumen = dokumen.slice(0, dokumen.length - 2)
+  //         }
+  //       }
+  //       const result = await documents.findByPk(id)
+  //       if (result) {
+  //         await result.update({ status_dokumen: 1 })
+  //         const send = { dokumenId: result.id, path: dokumen }
+  //         const upload = await Path.create(send)
+  //         return response(res, 'successfully upload dokumen', { upload })
+  //       } else {
+  //         return response(res, 'failed to upload dokumen', {}, 404, false)
+  //       }
+  //     } catch (error) {
+  //       return response(res, error.message, {}, 500, false)
+  //     }
+  //   })
+  // },
+  editUploadDocument: async (req, res) => {
     const id = req.params.id
     uploadHelper(req, res, async function (err) {
       try {
@@ -227,9 +370,17 @@ module.exports = {
         }
         const result = await documents.findByPk(id)
         if (result) {
-          const send = { status_dokumen: 1, path: dokumen }
-          await result.update(send)
-          return response(res, 'successfully upload dokumen', { result })
+          await result.update({ status_dokumen: 1 })
+          const valid = await Path.findOne({ dokumenId: result.id })
+          if (valid) {
+            const send = { path: dokumen }
+            await valid.update(send)
+            return response(res, 'successfully upload dokumen', { result })
+          } else {
+            const send = { dokumenId: result.id, path: dokumen }
+            const upload = await Path.create(send)
+            return response(res, 'successfully upload dokumen', { upload })
+          }
         } else {
           return response(res, 'failed to upload dokumen', {}, 404, false)
         }
@@ -306,7 +457,7 @@ module.exports = {
           const dokumen = `assets/masters/${req.files[0].filename}`
           const rows = await readXlsxFile(dokumen)
           const count = []
-          const cek = ['Kode Dokumen', 'Nama Dokumen', 'Jenis Dokumen', 'Divisi', 'Status Depo']
+          const cek = ['Nama Dokumen', 'Jenis Dokumen', 'Divisi', 'Status Depo', 'Uploaded By']
           const valid = rows[0]
           for (let i = 0; i < cek.length; i++) {
             if (valid[i] === cek[i]) {
@@ -314,24 +465,84 @@ module.exports = {
             }
           }
           if (count.length === cek.length) {
-            rows.shift()
-            const result = await sequelize.query(`INSERT INTO documents (kode_dokumen, nama_dokumen, jenis_dokumen, divisi, status_depo) VALUES ${rows.map(a => '(?)').join(',')}`,
-              {
-                replacements: rows,
-                type: QueryTypes.INSERT
-              })
-            if (result) {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'successfully upload file master')
+            const plant = []
+            const kode = []
+            const status = []
+            for (let i = 1; i < rows.length; i++) {
+              const a = rows[i]
+              plant.push(`Nama Dokumen ${a[0]} dan Status Depo ${a[3]}`)
+              kode.push(`${a[0]}`)
+              status.push(`${a[3]}`)
+            }
+            const object = {}
+            const result = []
+
+            plant.forEach(item => {
+              if (!object[item]) { object[item] = 0 }
+              object[item] += 1
+            })
+
+            for (const prop in object) {
+              if (object[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+            if (result.length > 0) {
+              return response(res, 'there is duplication in your file master', { result }, 404, false)
             } else {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'failed to upload file', {}, 404, false)
+              const arr = []
+              for (let i = 0; i < rows.length - 1; i++) {
+                const select = await sequelize.query(`SELECT nama_dokumen, status_depo from documents WHERE nama_dokumen='${kode[i]}' AND status_depo='${status[i]}'`, {
+                  type: QueryTypes.SELECT
+                })
+                await sequelize.query(`DELETE from documents WHERE nama_dokumen='${kode[i]}' AND status_depo='${status[i]}'`, {
+                  type: QueryTypes.DELETE
+                })
+                if (select.length > 0) {
+                  arr.push(select[0])
+                }
+              }
+              if (arr.length > 0) {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO documents (nama_dokumen, jenis_dokumen, divisi, status_depo, uploadedBy) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              } else {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO documents (nama_dokumen, jenis_dokumen, divisi, status_depo, uploadedBy) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              }
             }
           } else {
             fs.unlink(dokumen, function (err) {

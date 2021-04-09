@@ -23,9 +23,9 @@ module.exports = {
           bcrypt.compare(results.password, result.password, function (_err, result) {
             if (result) {
               jwt.sign({ id: id, level: user_level, kode: kode_depo }, `${APP_KEY}`, {
-                expiresIn: '3d'
+                expiresIn: '12h'
               }, (_err, token) => {
-                return response(res, 'login success', { user: results.username, Token: `${token}` })
+                return response(res, 'login success', { user: { id, kode_depo, user_level }, Token: `${token}` })
               })
             } else {
               return response(res, 'Wrong password', {}, 400, false)

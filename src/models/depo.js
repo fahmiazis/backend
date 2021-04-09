@@ -11,6 +11,11 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate (models) {
       // define association here
+      depo.hasMany(models.documents, {
+        foreignKey: 'status_depo',
+        as: 'dokumen',
+        sourceKey: 'status_depo'
+      })
     }
   };
   depo.init({
@@ -19,10 +24,11 @@ module.exports = (sequelize, DataTypes) => {
     home_town: DataTypes.STRING,
     channel: DataTypes.STRING,
     distribution: DataTypes.STRING,
-    status_depo: DataTypes.STRING,
-    kode_sap_1: DataTypes.STRING,
-    kode_sap_2: DataTypes.STRING,
+    status_depo: DataTypes.ENUM('Cabang SAP', 'Cabang Scylla', 'Depo SAP', 'Depo Scylla'),
+    profit_center: DataTypes.STRING,
     kode_plant: DataTypes.STRING,
+    kode_sap_1: DataTypes.INTEGER,
+    kode_sap_2: DataTypes.INTEGER,
     nama_grom: DataTypes.STRING,
     nama_bm: DataTypes.STRING,
     nama_ass: DataTypes.STRING,

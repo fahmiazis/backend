@@ -8,10 +8,6 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      kode_dokumen: {
-        type: Sequelize.STRING,
-        unique: true
-      },
       nama_dokumen: {
         type: Sequelize.STRING
       },
@@ -22,25 +18,19 @@ module.exports = {
         type: Sequelize.STRING
       },
       status_depo: {
-        type: Sequelize.STRING
+        type: Sequelize.ENUM('Cabang SAP', 'Cabang Scylla', 'Depo SAP', 'Depo Scylla')
+      },
+      uploadedBy: {
+        type: Sequelize.ENUM('sa', 'kasir')
       },
       status: {
-        type: Sequelize.ENUM('active', 'inactive')
+        type: Sequelize.ENUM('active', 'inactive'),
+        defaultValue: 'active'
       },
-      kode_depo: {
-        type: Sequelize.INTEGER
-      },
-      lock_dokumen: {
-        type: Sequelize.TINYINT
-      },
-      alasan: {
-        type: Sequelize.STRING
-      },
-      status_dokumen: {
-        type: Sequelize.INTEGER
-      },
-      path: {
-        type: Sequelize.STRING
+      postDokumen: {
+        allowNull: false,
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.fn('NOW')
       },
       createdAt: {
         allowNull: false,

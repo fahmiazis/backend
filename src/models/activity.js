@@ -3,7 +3,7 @@ const {
   Model
 } = require('sequelize')
 module.exports = (sequelize, DataTypes) => {
-  class documents extends Model {
+  class activity extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
@@ -11,18 +11,23 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate (models) {
       // define association here
+      activity.hasMany(models.Path, {
+        foreignKey: 'activityId',
+        as: 'doc'
+      })
     }
   };
-  documents.init({
-    nama_dokumen: DataTypes.STRING,
+  activity.init({
+    kode_plant: DataTypes.STRING,
+    progress: DataTypes.INTEGER,
+    documentDate: DataTypes.DATE,
+    status: DataTypes.STRING,
+    access: DataTypes.ENUM('lock', 'unlock'),
     jenis_dokumen: DataTypes.ENUM('daily', 'monthly'),
-    divisi: DataTypes.STRING,
-    status_depo: DataTypes.ENUM('Cabang SAP', 'Cabang Scylla', 'Depo SAP', 'Depo Scylla'),
-    uploadedBy: DataTypes.ENUM('sa', 'kasir'),
-    status: DataTypes.ENUM('active', 'inactive')
+    tipe: DataTypes.ENUM('sa', 'kasir')
   }, {
     sequelize,
-    modelName: 'documents'
+    modelName: 'activity'
   })
-  return documents
+  return activity
 }

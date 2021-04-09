@@ -182,24 +182,84 @@ module.exports = {
             }
           }
           if (count.length === cek.length) {
-            rows.shift()
-            const result = await sequelize.query(`INSERT INTO divisis (divisi) VALUES ${rows.map(a => '(?)').join(',')}`,
-              {
-                replacements: rows,
-                type: QueryTypes.INSERT
-              })
-            if (result) {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'successfully upload file master')
+            const plant = []
+            const divisi = []
+            for (let i = 1; i < rows.length; i++) {
+              const a = rows[i]
+              plant.push(`Nama Divisi ${a[0]}`)
+              divisi.push(`${a[0]}`)
+            }
+            const object = {}
+            const result = []
+
+            plant.forEach(item => {
+              if (!object[item]) { object[item] = 0 }
+              object[item] += 1
+            })
+
+            for (const prop in object) {
+              if (object[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+            if (result.length > 0) {
+              return response(res, 'there is duplication in your file master', { result }, 404, false)
             } else {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'failed to upload file', {}, 404, false)
+              const arr = []
+              for (let i = 0; i < rows.length - 1; i++) {
+                const select = await sequelize.query(`SELECT divisi from divisis WHERE divisi='${divisi[i]}'`, {
+                  type: QueryTypes.SELECT
+                })
+                await sequelize.query(`DELETE from divisis WHERE divisi='${divisi[i]}'`, {
+                  type: QueryTypes.DELETE
+                })
+                if (select.length > 0) {
+                  console.log(select[0])
+                  arr.push(select[0])
+                }
+              }
+              console.log(arr.length)
+              if (arr.length > 0) {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO divisis (divisi) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              } else {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO divisis (divisi) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              }
             }
           } else {
             fs.unlink(dokumen, function (err) {

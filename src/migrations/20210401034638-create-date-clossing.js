@@ -1,32 +1,24 @@
 'use strict'
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('users', {
+    await queryInterface.createTable('date_clossings', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      username: {
-        type: Sequelize.STRING,
-        unique: true
-      },
-      password: {
-        type: Sequelize.STRING
-      },
       kode_depo: {
-        type: Sequelize.STRING
-      },
-      nama_depo: {
-        type: Sequelize.STRING
-      },
-      user_level: {
         type: Sequelize.INTEGER
       },
-      status: {
-        type: Sequelize.ENUM('active', 'inactive'),
-        defaultValue: 'active'
+      jenis: {
+        type: Sequelize.ENUM('daily', 'monthly')
+      },
+      day: {
+        type: Sequelize.DATEONLY
+      },
+      time: {
+        type: Sequelize.DATE
       },
       createdAt: {
         allowNull: false,
@@ -41,6 +33,6 @@ module.exports = {
     })
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('users')
+    await queryInterface.dropTable('date_clossings')
   }
 }

@@ -9,10 +9,12 @@ module.exports = {
         type: Sequelize.INTEGER
       },
       kode_plant: {
-        type: Sequelize.STRING,
-        unique: true
+        type: Sequelize.STRING
       },
       area: {
+        type: Sequelize.STRING
+      },
+      email_sa_kasir: {
         type: Sequelize.STRING
       },
       email_aos: {
@@ -42,11 +44,12 @@ module.exports = {
       email_ho_4: {
         type: Sequelize.STRING
       },
-      email_sa: {
-        type: Sequelize.STRING
+      tipe: {
+        type: Sequelize.ENUM('sa', 'kasir')
       },
       status: {
-        type: Sequelize.ENUM('active', 'inactive')
+        type: Sequelize.ENUM('active', 'inactive'),
+        defaultValue: 'active'
       },
       createdAt: {
         allowNull: false,

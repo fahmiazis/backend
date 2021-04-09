@@ -16,6 +16,7 @@ module.exports = (sequelize, DataTypes) => {
   email.init({
     kode_plant: DataTypes.STRING,
     area: DataTypes.STRING,
+    email_sa_kasir: DataTypes.STRING,
     email_aos: DataTypes.STRING,
     email_ho_pic: DataTypes.STRING,
     email_bm: DataTypes.STRING,
@@ -25,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
     email_ho_2: DataTypes.STRING,
     email_ho_3: DataTypes.STRING,
     email_ho_4: DataTypes.STRING,
-    email_sa: DataTypes.STRING,
+    tipe: DataTypes.ENUM('sa', 'kasir'),
     status: DataTypes.ENUM('active', 'inactive')
   }, {
     sequelize,

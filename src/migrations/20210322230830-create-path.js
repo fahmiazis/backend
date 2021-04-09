@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('Paths', {
@@ -8,8 +8,14 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      dokumenId: {
+      dokumen: {
+        type: Sequelize.STRING
+      },
+      activityId: {
         type: Sequelize.INTEGER
+      },
+      kode_depo: {
+        type: Sequelize.STRING
       },
       path: {
         type: Sequelize.STRING
@@ -18,13 +24,19 @@ module.exports = {
         allowNull: false,
         type: Sequelize.DATE
       },
+      alasan: {
+        type: Sequelize.STRING
+      },
+      status_dokumen: {
+        type: Sequelize.INTEGER
+      },
       updatedAt: {
         allowNull: false,
         type: Sequelize.DATE
       }
-    });
+    })
   },
   down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('Paths');
+    await queryInterface.dropTable('Paths')
   }
-};
+}

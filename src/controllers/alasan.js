@@ -66,17 +66,20 @@ module.exports = {
           if (results.alasan) {
             const result = await alasan.findAll({
               where: {
-                alasan: results.alasan,
+                [Op.and]: [
+                  { alasan: results.alasan },
+                  { kode_alasan: results.kode_alasan }
+                ],
                 [Op.not]: { id: id }
               }
             })
             if (result.length > 0) {
-              return response(res, 'alasan already exist', {}, 404, false)
+              return response(res, 'Alasan already exist', {}, 404, false)
             } else {
               if (results.kode_alasan) {
                 const result = await alasan.findAll({
                   where: {
-                    kode_lasan: results.kode_alasan,
+                    kode_alasan: results.kode_alasan,
                     [Op.not]: { id: id }
                   }
                 })
@@ -99,24 +102,6 @@ module.exports = {
                 } else {
                   return response(res, 'failed to update alasan', {}, 404, false)
                 }
-              }
-            }
-          } else if (results.kode_alasan) {
-            const result = await alasan.findAll({
-              where: {
-                kode_lasan: results.kode_alasan,
-                [Op.not]: { id: id }
-              }
-            })
-            if (result.length > 0) {
-              return response(res, 'kode alasan already use', {}, 404, false)
-            } else {
-              const result = await alasan.findByPk(id)
-              if (result) {
-                await result.update(results)
-                return response(res, 'update alasan successfully', { result })
-              } else {
-                return response(res, 'failed to update alasan', {}, 404, false)
               }
             }
           } else {
@@ -239,24 +224,84 @@ module.exports = {
             }
           }
           if (count.length === cek.length) {
-            rows.shift()
-            const result = await sequelize.query(`INSERT INTO alasans (kode_alasan, alasan) VALUES ${rows.map(a => '(?)').join(',')}`,
-              {
-                replacements: rows,
-                type: QueryTypes.INSERT
-              })
-            if (result) {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'successfully upload file master')
+            const plant = []
+            const kode = []
+            const status = []
+            for (let i = 1; i < rows.length; i++) {
+              const a = rows[i]
+              plant.push(`Kode Alasan ${a[0]} dan Alasan ${a[1]}`)
+              kode.push(`${a[0]}`)
+              status.push(`${a[1]}`)
+            }
+            const object = {}
+            const result = []
+
+            plant.forEach(item => {
+              if (!object[item]) { object[item] = 0 }
+              object[item] += 1
+            })
+
+            for (const prop in object) {
+              if (object[prop] >= 2) {
+                result.push(prop)
+              }
+            }
+            if (result.length > 0) {
+              return response(res, 'there is duplication in your file master', { result }, 404, false)
             } else {
-              fs.unlink(dokumen, function (err) {
-                if (err) throw err
-                console.log('success')
-              })
-              return response(res, 'failed to upload file', {}, 404, false)
+              const arr = []
+              for (let i = 0; i < rows.length - 1; i++) {
+                const select = await sequelize.query(`SELECT kode_alasan, alasan from alasans WHERE kode_alasan='${kode[i]}'`, {
+                  type: QueryTypes.SELECT
+                })
+                await sequelize.query(`DELETE from alasans WHERE kode_alasan='${kode[i]}'`, {
+                  type: QueryTypes.DELETE
+                })
+                if (select.length > 0) {
+                  arr.push(select[0])
+                }
+              }
+              if (arr.length > 0) {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO alasans (kode_alasan, alasan) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              } else {
+                rows.shift()
+                const result = await sequelize.query(`INSERT INTO alasans (kode_alasan, alasan) VALUES ${rows.map(a => '(?)').join(',')}`,
+                  {
+                    replacements: rows,
+                    type: QueryTypes.INSERT
+                  })
+                if (result) {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'successfully upload file master')
+                } else {
+                  fs.unlink(dokumen, function (err) {
+                    if (err) throw err
+                    console.log('success')
+                  })
+                  return response(res, 'failed to upload file', {}, 404, false)
+                }
+              }
             }
           } else {
             fs.unlink(dokumen, function (err) {
