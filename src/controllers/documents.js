@@ -69,11 +69,8 @@ module.exports = {
         uploadedBy: joi.string().valid('sa', 'kasir').required(),
         divisi: joi.string().disallow('-Pilih Divisi-'),
         createdAt: joi.string(),
+        postDokumen: joi.date(),
         status_depo: joi.string().valid('Cabang SAP', 'Cabang Scylla', 'Depo SAP', 'Depo Scylla'),
-        status: joi.string().valid('active', 'inactive'),
-        kode_depo: joi.number(),
-        lock_dokumen: joi.number(),
-        alasan: joi.string(),
         status_dokumen: joi.number()
       })
       const { value: results, error } = schema.validate(req.body)
@@ -460,6 +457,7 @@ module.exports = {
           const cek = ['Nama Dokumen', 'Jenis Dokumen', 'Divisi', 'Status Depo', 'Uploaded By']
           const valid = rows[0]
           for (let i = 0; i < cek.length; i++) {
+            console.log(valid[i] + '===' + cek[i])
             if (valid[i] === cek[i]) {
               count.push(1)
             }

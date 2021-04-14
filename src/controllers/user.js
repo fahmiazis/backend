@@ -1,6 +1,6 @@
 const joi = require('joi')
 const response = require('../helpers/response')
-const { users, sequelize } = require('../models')
+const { users, sequelize, pic } = require('../models')
 const bcrypt = require('bcryptjs')
 const { Op, QueryTypes } = require('sequelize')
 const { pagination } = require('../helpers/pagination')
@@ -436,6 +436,122 @@ module.exports = {
         }
       } else {
         return response(res, 'failed', {}, 404, false)
+      }
+    } catch (error) {
+      return response(res, error.message, {}, 500, false)
+    }
+  },
+  createUserPic: async (req, res) => {
+    try {
+      const level = req.user.level
+      if (level === 1) {
+        const result = await pic.findAll()
+        const user = await users.findAll()
+        if (result) {
+          const data = []
+          const dataUser = []
+          result.map(x => {
+            return (
+              data.push(x.pic)
+            )
+          })
+          user.map(x => {
+            return (
+              dataUser.push(x.username)
+            )
+          })
+          const set = new Set(data)
+          const newData = [...set]
+          const filter = []
+          for (let i = 0; i < newData.length; i++) {
+            const pos = dataUser.indexOf(newData[i])
+            if (pos === -1) {
+              filter.push(newData[i])
+            }
+          }
+          console.log(filter)
+          if (filter.length !== 0) {
+            const send = []
+            for (let i = 0; i < filter.length; i++) {
+              const create = [filter[i], await bcrypt.hash(filter[i], await bcrypt.genSalt()), 3]
+              send.push(create)
+            }
+            const results = await sequelize.query(`INSERT INTO users (username, password, user_level) VALUES ${send.map(a => '(?)').join(',')}`,
+              {
+                replacements: send,
+                type: QueryTypes.INSERT
+              })
+            if (results) {
+              return response(res, 'success create user pic')
+            } else {
+              return response(res, 'failed create user pic', {}, 404, false)
+            }
+          } else {
+            return response(res, 'All Pic has user account')
+          }
+        } else {
+          return response(res, 'failed get pic', {}, 404, false)
+        }
+      } else {
+        return response(res, "You're not super administrator", {}, 404, false)
+      }
+    } catch (error) {
+      return response(res, error.message, {}, 500, false)
+    }
+  },
+  createUserSpv: async (req, res) => {
+    try {
+      const level = req.user.level
+      if (level === 1) {
+        const result = await pic.findAll()
+        const user = await users.findAll()
+        if (result) {
+          const data = []
+          const dataUser = []
+          result.map(x => {
+            return (
+              data.push(x.spv)
+            )
+          })
+          user.map(x => {
+            return (
+              dataUser.push(x.username)
+            )
+          })
+          const set = new Set(data)
+          const newData = [...set]
+          const filter = []
+          for (let i = 0; i < newData.length; i++) {
+            const pos = dataUser.indexOf(newData[i])
+            if (pos === -1) {
+              filter.push(newData[i])
+            }
+          }
+          console.log(filter)
+          if (filter.length !== 0) {
+            const send = []
+            for (let i = 0; i < filter.length; i++) {
+              const create = [filter[i], await bcrypt.hash(filter[i], await bcrypt.genSalt()), 2]
+              send.push(create)
+            }
+            const results = await sequelize.query(`INSERT INTO users (username, password, user_level) VALUES ${send.map(a => '(?)').join(',')}`,
+              {
+                replacements: send,
+                type: QueryTypes.INSERT
+              })
+            if (results) {
+              return response(res, 'success create user pic', { send })
+            } else {
+              return response(res, 'failed create user pic', {}, 404, false)
+            }
+          } else {
+            return response(res, 'All SPV has user account')
+          }
+        } else {
+          return response(res, 'failed get pic', {}, 404, false)
+        }
+      } else {
+        return response(res, "You're not super administrator", {}, 404, false)
       }
     } catch (error) {
       return response(res, error.message, {}, 500, false)

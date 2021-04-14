@@ -19,7 +19,7 @@ module.exports = {
         pic: joi.string().required(),
         spv: joi.string().required(),
         divisi: joi.string().required(),
-        kode_depo: joi.number().required().valid(),
+        kode_depo: joi.string().required().valid(),
         nama_depo: joi.string().required(),
         status: joi.string().required().valid('active', 'inactive')
       })
@@ -55,7 +55,7 @@ module.exports = {
         pic: joi.string(),
         spv: joi.string(),
         divisi: joi.string(),
-        kode_depo: joi.number(),
+        kode_depo: joi.string(),
         nama_depo: joi.string(),
         status: joi.string()
       })

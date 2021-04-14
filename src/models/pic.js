@@ -11,9 +11,16 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate (models) {
       // define association here
-      pic.hasMany(models.depo, {
-        foreignKey: 'kode_depo',
+      pic.hasOne(models.depo, {
+        sourceKey: 'kode_depo',
+        foreignKey: 'kode_plant',
         as: 'depo'
+      })
+
+      pic.hasMany(models.users, {
+        sourceKey: 'kode_depo',
+        foreignKey: 'kode_depo',
+        as: 'area'
       })
     }
   };

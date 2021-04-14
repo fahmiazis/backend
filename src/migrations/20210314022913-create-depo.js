@@ -9,7 +9,7 @@ module.exports = {
         type: Sequelize.INTEGER
       },
       kode_depo: {
-        type: Sequelize.INTEGER,
+        type: Sequelize.STRING,
         unique: true
       },
       nama_depo: {

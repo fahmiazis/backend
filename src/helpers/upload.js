@@ -9,7 +9,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = file.originalname.split('.')[file.originalname.split('.').length - 1]
-    const fileName = req.params ? `${req.params.id}_${new Date().getTime().toString().concat('.').concat(ext)}` : `${new Date().getTime().toString().concat('.').concat(ext)}`
+    const fileName = `${req.params.id}_${new Date().getTime().toString().concat('.').concat(ext)}`
     cb(null, fileName)
   }
 })
@@ -22,4 +22,4 @@ const fileFilter = (req, file, cb) => {
   return cb(new Error('Invalid file type. Only excel and pdf files are allowed.'), false)
 }
 
-module.exports = multer({ storage, fileFilter, limits: { fileSize: 10000000 } }).array('document', 1)
+module.exports = multer({ storage, fileFilter, limits: { fileSize: 10000000 } }).single('document')

@@ -12,6 +12,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate (models) {
       // define association here
       activity.hasMany(models.Path, {
+        sourceKey: 'id',
         foreignKey: 'activityId',
         as: 'doc'
       })

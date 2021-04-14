@@ -8,5 +8,7 @@ route.delete('/delete/:id', user.deleteUser)
 route.get('/detail/:id', user.getDetailUser)
 route.post('/master', user.uploadMasterUser)
 route.get('/export', user.exportSqlUser)
+route.get('/create/pic', user.createUserPic)
+route.get('/create/spv', user.createUserSpv)
 
 module.exports = route

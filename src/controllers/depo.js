@@ -178,7 +178,7 @@ module.exports = {
       if (typeof sort === 'object') {
         sortValue = Object.values(sort)[0]
       } else {
-        sortValue = sort || 'createdAt'
+        sortValue = sort || 'id'
       }
       if (!limit) {
         limit = 10
@@ -276,10 +276,12 @@ module.exports = {
           const cek = ['Kode Depo', 'Nama Depo', 'Home Town', 'Channel', 'Distribution', 'Status Depo', 'Profit Center', 'Kode SAP 1', 'Kode SAP 2', 'Kode Plant', 'Nama GROM', 'Nama BM', 'Nama ASS', 'Nama PIC 1', 'Nama PIC 2', 'Nama PIC 3', 'Nama PIC 4']
           const valid = rows[0]
           for (let i = 0; i < cek.length; i++) {
+            console.log(valid[i] === cek[i])
             if (valid[i] === cek[i]) {
               count.push(1)
             }
           }
+          console.log(count.length)
           if (count.length === cek.length) {
             const plant = []
             const profit = []
@@ -293,8 +295,12 @@ module.exports = {
               kode.push(`${a[9]}`)
               depo.push(`Kode Depo ${a[0]}`)
               profit.push(`Profit Center ${a[6]}`)
-              sap1.push(`Kode SAP 1 ${a[7]}`)
-              sap2.push(`Kode SAP 2 ${a[8]}`)
+              if (a[7] !== null) {
+                sap1.push(`Kode SAP 1 ${a[7]}`)
+              }
+              if (a[8] !== null) {
+                sap2.push(`Kode SAP 2 ${a[8]}`)
+              }
             }
             const object = {}
             const result = []

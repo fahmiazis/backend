@@ -1,8 +1,9 @@
 const express = require('express')
 const bodyParser = require('body-parser')
-const morgan = require('morgan')
 const cors = require('cors')
 const response = require('./helpers/response')
+// const fs = require('fs')
+const cron = require('node-cron')
 
 const app = express()
 const server = require('http').createServer(app)
@@ -10,7 +11,6 @@ const server = require('http').createServer(app)
 const { APP_PORT } = process.env
 
 app.use(bodyParser.urlencoded({ extended: false }))
-app.use(morgan('dev'))
 app.use(cors())
 
 const authMiddleware = require('./middleware/auth')
@@ -24,6 +24,7 @@ const dokumenRoute = require('./routes/dokumen')
 const depoRoute = require('./routes/depo')
 const picRoute = require('./routes/pic')
 const transRoute = require('./routes/transaction')
+const showRoute = require('./routes/show')
 
 app.use('/uploads', express.static('assets/documents'))
 app.use('/masters', express.static('assets/masters'))
@@ -38,6 +39,26 @@ app.use('/email', authMiddleware, emailRoute)
 app.use('/dokumen', authMiddleware, dokumenRoute)
 app.use('/depo', authMiddleware, depoRoute)
 app.use('/pic', authMiddleware, picRoute)
+app.use('/show', showRoute)
+
+cron.schedule('0 17 * * *', () => {
+  console.log('Running a job at 16:00 at jakarta timezone')
+}, {
+  scheduled: true,
+  timezone: 'Asia/Jakarta'
+})
+
+// app.get('/show', function (req, res) {
+//   const filePath = 'assets/documents/1_1617886935906.pdf'
+
+//   fs.readFile(filePath, function (err, data) {
+//     if (err) {
+//       console.log(err)
+//     }
+//     res.contentType('application/pdf')
+//     res.send(data)
+//   })
+// })
 
 app.get('*', (req, res) => {
   response(res, 'Error route not found', {}, 404, false)

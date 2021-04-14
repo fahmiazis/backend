@@ -16,10 +16,26 @@ module.exports = (sequelize, DataTypes) => {
         as: 'dokumen',
         sourceKey: 'status_depo'
       })
+
+      depo.hasMany(models.users, {
+        sourceKey: 'kode_plant',
+        foreignKey: 'kode_depo',
+        as: 'area'
+      })
+      depo.hasMany(models.activity, {
+        sourceKey: 'kode_plant',
+        foreignKey: 'kode_plant',
+        as: 'active'
+      })
+      depo.hasMany(models.email, {
+        sourceKey: 'kode_plant',
+        foreignKey: 'kode_plant',
+        as: 'emails'
+      })
     }
   };
   depo.init({
-    kode_depo: DataTypes.INTEGER,
+    kode_depo: DataTypes.STRING,
     nama_depo: DataTypes.STRING,
     home_town: DataTypes.STRING,
     channel: DataTypes.STRING,

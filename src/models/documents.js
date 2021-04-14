@@ -10,12 +10,13 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate (models) {
-      // define association here
+      // define association here]
     }
   };
   documents.init({
     nama_dokumen: DataTypes.STRING,
     jenis_dokumen: DataTypes.ENUM('daily', 'monthly'),
+    postDokumen: DataTypes.DATE,
     divisi: DataTypes.STRING,
     status_depo: DataTypes.ENUM('Cabang SAP', 'Cabang Scylla', 'Depo SAP', 'Depo Scylla'),
     uploadedBy: DataTypes.ENUM('sa', 'kasir'),
