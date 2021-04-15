@@ -11,6 +11,7 @@ const fs = require('fs')
 // const excel = require('exceljs')
 const mailer = require('../helpers/mailer')
 const moment = require('moment')
+// const xlsx = require('xlsx')
 
 module.exports = {
   dashboard: async (req, res) => {
@@ -47,7 +48,7 @@ module.exports = {
         typeSortValue = typeSort || 'DESC'
       }
       if (!limit) {
-        limit = 5
+        limit = 10
       } else {
         limit = parseInt(limit)
       }
@@ -73,14 +74,14 @@ module.exports = {
           const results = await documents.findAndCountAll({
             where: {
               [Op.or]: [
-                { nama_dokumen: { [Op.like]: `%${searchValue}%` } }
+                { nama_dokumen: { [Op.like]: `%${searchValue}%` } },
+                { jenis_dokumen: { [Op.like]: `%${tipeValue}%` } }
               ],
               [Op.and]: [
-                { jenis_dokumen: { [Op.like]: `%${tipeValue}%` } },
+                { status_depo: cabang },
                 { uploadedBy: 'sa' }
               ],
-              [Op.not]: { status: 'inactive' },
-              status_depo: cabang
+              [Op.not]: { status: 'inactive' }
             },
             order: [[sortValue, typeSortValue]],
             limit: limit,
@@ -126,20 +127,20 @@ module.exports = {
           const results = await documents.findAndCountAll({
             where: {
               [Op.or]: [
-                { nama_dokumen: { [Op.like]: `%${searchValue}%` } }
+                { nama_dokumen: { [Op.like]: `%${searchValue}%` } },
+                { jenis_dokumen: { [Op.like]: `%${tipeValue}%` } }
               ],
               [Op.and]: [
-                { jenis_dokumen: { [Op.like]: `%${tipeValue}%` } },
+                { status_depo: cabang },
                 { uploadedBy: 'kasir' }
               ],
-              [Op.not]: { status: 'inactive' },
-              status_depo: cabang
+              [Op.not]: { status: 'inactive' }
             },
             order: [[sortValue, typeSortValue]]
           })
           const pageInfo = pagination('/dokumen/get', req.query, page, limit, results.count)
           if (results) {
-            const cek = await sequelize.query(`SELECT kode_plant, tipe from activities WHERE (kode_plant='${kode}' AND tipe='kasir') AND jenis_dokumen LIKE '%${tipeValue}%' AND createdAt LIKE '%${time}%' LIMIT 1`, {
+            const cek = await sequelize.query(`SELECT kode_plant, tipe from activities WHERE (kode_plant='${kode}' AND tipe='kasir') AND jenis_dokumen LIKE '%${tipeValue}%' AND createdAt LIKE '%${timeUser}%' LIMIT 1`, {
               type: QueryTypes.SELECT
             })
             if (cek.length > 0) {
@@ -148,6 +149,7 @@ module.exports = {
               const data = {
                 kode_plant: kode,
                 status: 'Belum Upload',
+                documentDate: results.postDokumen,
                 access: 'unlock',
                 jenis_dokumen: tipeValue === 'daily' ? 'daily' : 'monthly',
                 tipe: 'kasir'
@@ -171,6 +173,8 @@ module.exports = {
           where: {
             pic: name
           },
+          limit: limit,
+          offset: (page - 1) * limit,
           include: [
             {
               model: depo,
@@ -178,6 +182,7 @@ module.exports = {
             }
           ]
         })
+        const pageInfo = pagination('/dashboard/get', req.query, page, limit, results.count)
         if (results) {
           const depos = []
           results.rows.map(x => {
@@ -287,9 +292,9 @@ module.exports = {
               }
             }
             if (sa.length > 0 || kasir.length > 0) {
-              return response(res, 'list dokumen', { results, sa, kasir })
+              return response(res, 'list dokumen', { results, sa, kasir, pageInfo })
             } else {
-              return response(res, 'list dokumen', { results, sa, kasir })
+              return response(res, 'list dokumen', { results, sa, kasir, pageInfo })
             }
           } else {
             return response(res, 'depo no found', {}, 404, false)
@@ -301,8 +306,10 @@ module.exports = {
         const name = req.user.name
         const results = await pic.findAndCountAll({
           where: {
-            spv: { [Op.like]: `%${name}` }
+            spv: name
           },
+          limit: limit,
+          offset: (page - 1) * limit,
           include: [
             {
               model: depo,
@@ -310,6 +317,7 @@ module.exports = {
             }
           ]
         })
+        const pageInfo = pagination('/dashboard/get', req.query, page, limit, results.count)
         if (results) {
           const depos = []
           results.rows.map(x => {
@@ -419,9 +427,9 @@ module.exports = {
               }
             }
             if (sa.length > 0 || kasir.length > 0) {
-              return response(res, 'list dokumen', { results, sa, kasir })
+              return response(res, 'list dokumen', { results, sa, kasir, pageInfo })
             } else {
-              return response(res, 'list dokumen', { results, sa, kasir })
+              return response(res, 'list dokumen', { results, sa, kasir, pageInfo })
             }
           } else {
             return response(res, 'depo no found', {}, 404, false)
@@ -434,7 +442,8 @@ module.exports = {
           where: {
             spv: { [Op.like]: '%%' }
           },
-          limit: 20,
+          limit: limit,
+          offset: (page - 1) * limit,
           include: [
             {
               model: depo,
@@ -442,6 +451,7 @@ module.exports = {
             }
           ]
         })
+        const pageInfo = pagination('/dashboard/get', req.query, page, limit, results.count)
         if (results) {
           const depos = []
           results.rows.map(x => {
@@ -551,9 +561,9 @@ module.exports = {
               }
             }
             if (sa.length > 0 || kasir.length > 0) {
-              return response(res, 'list dokumen', { results, sa, kasir })
+              return response(res, 'list dokumen', { results, sa, kasir, pageInfo })
             } else {
-              return response(res, 'list dokumen', { results, sa, kasir })
+              return response(res, 'list dokumen', { results, sa, kasir, pageInfo })
             }
           } else {
             return response(res, 'depo no found', {}, 404, false)
@@ -1072,7 +1082,7 @@ module.exports = {
                   ]
                 })
                 if (result.length > 0) {
-                  sa.push(result)
+                  sa.push(result[0])
                 }
               }
               for (let i = 0; i < depos.length; i++) {
@@ -1117,11 +1127,28 @@ module.exports = {
                   ]
                 })
                 if (result.length > 0) {
-                  kasir.push(result)
+                  kasir.push(result[0])
                 }
               }
               if (kasir.length > 0 || sa.length > 0) {
-                // const header = ['No', 'PIC', 'Nama Depo', 'Kode Plant', 'Profit Center', 'Kode SAP 1', 'Tanggal Dokumen', 'Tanggal Upload', '1', '2', '3', '4', '5', '6', '7']
+                const data = []
+                const body = []
+                sa.map(x => {
+                  return (
+                    data.push(x.dokumen.length === undefined ? 0 : x.dokumen.length)
+                  )
+                })
+                kasir.map(x => {
+                  return (
+                    data.push(x.dokumen.length)
+                  )
+                })
+                const resu = []
+                for (let i = 0; i <= Math.max(...data) - 1; i++) {
+                  resu.push(i)
+                }
+                const header = ['No', 'PIC', 'Nama Depo', 'Kode Plant', 'Profit Center', 'Kode SAP 1', 'Tanggal Dokumen', 'Tanggal Upload', resu.length !== 0 && resu.map(item => item + 1) + '', 'Jumlah File Upload', 'Persentase', 'Status']
+                console.log(header)
                 return response(res, 'list dokumen', { findPic, sa, kasir })
               } else {
                 return response(res, 'list dokumen', { findPic, sa, kasir })
